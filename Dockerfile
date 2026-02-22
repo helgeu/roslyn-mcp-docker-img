@@ -22,4 +22,5 @@ RUN if [ "$ROSLYN_MCP_VERSION" = "latest" ]; then \
 ENV PATH="$PATH:/root/.dotnet/tools"
 
 # MCP servers use stdio transport
-ENTRYPOINT ["RoslynMcp.Server"]
+# Tool binary name is lowercase: roslyn-mcp
+ENTRYPOINT ["roslyn-mcp"]
