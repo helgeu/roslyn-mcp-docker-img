@@ -30,10 +30,20 @@ Claude Code → stdio (JSON-RPC) → Docker Container → RoslynMcp.Server (.NET
 ```
 
 Key design decisions:
-- **Path mapping**: Host paths mounted at identical container paths (`-v /path:/path`) so Roslyn returns usable file locations
-- **NuGet cache**: Mounted read-only from host `~/.nuget/packages` — Roslyn only reads package DLLs for type resolution
+- **Path mapping**: Both code and NuGet paths must be identical on host and container (`-v /path:/path`)
+- **NuGet path critical**: `.csproj` files reference packages at host paths, so NuGet must be mounted at same path (not `/root/.nuget/packages`)
 - **Per-call solution**: Each MCP tool call includes `solutionPath` parameter; no persistent state
 - **Multi-arch**: Builds for `linux/amd64,linux/arm64`
+
+## Helper Scripts
+
+```bash
+# Generate MCP config with correct paths
+./scripts/generate-config.sh ~/git
+
+# Verify paths are set up correctly
+./scripts/verify-paths.sh ~/git
+```
 
 ## CI/CD
 
