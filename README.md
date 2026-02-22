@@ -5,18 +5,25 @@ Docker image wrapping [RoslynMcp.Server](https://github.com/JoshuaRamirez/Roslyn
 ## Quick Start
 
 ```bash
-# Generate config for your paths
 git clone https://github.com/helgeu/roslyn-mcp-docker-img.git
 cd roslyn-mcp-docker-img
+
+# Bash (macOS/Linux)
 ./scripts/generate-config.sh ~/git
+
+# PowerShell (Windows)
+.\scripts\generate-config.ps1 -CodePath C:\git
 ```
 
-This outputs the MCP config to add to `~/.claude/settings.json`.
+This outputs the MCP config to add to your Claude settings.
 
 ## Setup Scripts
 
+Available in both Bash and PowerShell.
+
 ### Generate Configuration
 
+**Bash (macOS/Linux):**
 ```bash
 ./scripts/generate-config.sh <code-path> [options]
 
@@ -26,13 +33,28 @@ This outputs the MCP config to add to `~/.claude/settings.json`.
 ./scripts/generate-config.sh ~/git --output mcp-config.json
 ```
 
+**PowerShell (Windows):**
+```powershell
+.\scripts\generate-config.ps1 -CodePath <path> [-NuGetPath <path>] [-OutputFile <path>]
+
+# Examples:
+.\scripts\generate-config.ps1 -CodePath C:\git
+.\scripts\generate-config.ps1 -CodePath D:\projects -NuGetPath C:\Users\me\.nuget\packages
+.\scripts\generate-config.ps1 -CodePath C:\git -OutputFile mcp-config.json
+```
+
 ### Verify Paths
 
+**Bash (macOS/Linux):**
 ```bash
 ./scripts/verify-paths.sh <code-path> [nuget-path]
-
-# Example:
 ./scripts/verify-paths.sh ~/git
+```
+
+**PowerShell (Windows):**
+```powershell
+.\scripts\verify-paths.ps1 -CodePath <path> [-NuGetPath <path>]
+.\scripts\verify-paths.ps1 -CodePath C:\git
 ```
 
 Checks:
@@ -43,8 +65,9 @@ Checks:
 
 ## Manual Configuration
 
-Add to `~/.claude/settings.json`:
+Add to your Claude settings (`~/.claude/settings.json` on macOS/Linux, `%APPDATA%\Claude\settings.json` on Windows):
 
+**macOS/Linux:**
 ```json
 {
   "mcpServers": {
@@ -54,6 +77,23 @@ Add to `~/.claude/settings.json`:
         "run", "-i", "--rm",
         "-v", "/Users/yourname/git:/Users/yourname/git",
         "-v", "/Users/yourname/.nuget/packages:/Users/yourname/.nuget/packages:ro",
+        "ghcr.io/helgeu/roslyn-mcp-docker-img:latest"
+      ]
+    }
+  }
+}
+```
+
+**Windows:**
+```json
+{
+  "mcpServers": {
+    "roslyn": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "C:\\git:C:\\git",
+        "-v", "C:\\Users\\yourname\\.nuget\\packages:C:\\Users\\yourname\\.nuget\\packages:ro",
         "ghcr.io/helgeu/roslyn-mcp-docker-img:latest"
       ]
     }
