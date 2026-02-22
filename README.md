@@ -1,6 +1,8 @@
 # Roslyn MCP Docker Image
 
-Docker image wrapping [RoslynMcp.Server](https://github.com/JoshuaRamirez/RoslynMcpServer) for C# code analysis and refactoring via MCP.
+Docker image wrapping [RoslynMcp.Server](https://github.com/helgeu/RoslynMcpServer) for C# code analysis and refactoring via MCP.
+
+Built from a [fork](https://github.com/helgeu/RoslynMcpServer) with **Roslyn 5.0.0** for full **C# 13 support**. The upstream uses Roslyn 4.8.0 which only supports C# 12 and reports false errors on C# 13 features like `params IEnumerable<T>`.
 
 ## Quick Start
 
@@ -135,6 +137,55 @@ The JSON configuration is the same for all MCP clients. File locations differ by
 -v "$HOME/.nuget/packages:$HOME/.nuget/packages:ro"  # Same path
 ```
 
+## Troubleshooting
+
+### Phantom Errors (CS1503, CS8618, CS0246)
+
+If Roslyn MCP reports errors but `dotnet build` shows 0 errors, this indicates NuGet package resolution issues.
+
+**Symptoms:**
+- `CS1503`: Argument type mismatch (e.g., method expects `IEnumerable<string>` instead of `params string[]`)
+- `CS8618`: Non-nullable property not initialized (EF Core nullability annotations not resolved)
+- `CS0246`: Type or namespace not found
+
+**Diagnosis:**
+
+```bash
+# Bash
+./scripts/diagnose.sh ~/git/myproject/MyProject.sln
+
+# PowerShell
+.\scripts\diagnose.ps1 -SolutionPath C:\git\myproject\MyProject.sln
+```
+
+**Common fixes:**
+
+1. **Restore packages:**
+   ```bash
+   dotnet restore /path/to/Solution.sln
+   ```
+
+2. **Clear and restore NuGet cache:**
+   ```bash
+   dotnet nuget locals all --clear
+   dotnet restore /path/to/Solution.sln
+   ```
+
+3. **Verify path mapping:** Both code and NuGet paths must be identical inside and outside the container.
+
+4. **SDK version mismatch:** Container uses .NET 9.0. If your project targets a different SDK, some types may not resolve correctly.
+
+### Container Can't Find Solution
+
+Check that your volume mount uses the exact same path:
+```bash
+# Correct - same path inside and outside
+-v "/Users/me/git:/Users/me/git"
+
+# Wrong - different paths
+-v "/Users/me/git:/code"
+```
+
 ## Available Tools (41 total)
 
 - **Refactoring (19)**: rename_symbol, extract_method, extract_variable, move_type_to_file, etc.
@@ -146,11 +197,11 @@ The JSON configuration is the same for all MCP clients. File locations differ by
 ## Building Locally
 
 ```bash
-# Build with latest version
+# Build from fork's master branch
 docker build -t roslyn-mcp .
 
-# Build with specific version
-docker build --build-arg ROSLYN_MCP_VERSION=1.0.0 -t roslyn-mcp .
+# Build from specific branch or tag
+docker build --build-arg ROSLYN_MCP_REF=feat/some-branch -t roslyn-mcp .
 ```
 
 ## Testing
@@ -167,8 +218,7 @@ EOF
 
 GitHub Actions:
 - Builds and pushes to ghcr.io on every commit to `main`
-- Checks NuGet daily for upstream releases
-- Auto-tags new versions
+- Built from fork with Roslyn 5.0.0 for C# 13 support
 
 ## GitHub CLI Commands
 
@@ -177,9 +227,6 @@ gh workflow list                                    # List workflows
 gh run list --limit 5                               # Recent runs
 gh workflow run "Build and Push Docker Image"      # Trigger build
 gh run watch                                        # Watch running workflow
-
-# Check upstream version
-curl -s "https://api.nuget.org/v3-flatcontainer/roslynmcp.server/index.json" | jq -r '.versions | last'
 ```
 
 ## Available Tags
