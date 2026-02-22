@@ -12,6 +12,7 @@ LABEL org.opencontainers.image.licenses="MIT"
 # Clone fork with Roslyn 5.0.0 (C# 13 support) and build from source
 ARG ROSLYN_MCP_REPO=https://github.com/helgeu/RoslynMcpServer.git
 ARG ROSLYN_MCP_REF=master
+ARG CACHEBUST=1
 RUN git clone --depth 1 --branch "$ROSLYN_MCP_REF" "$ROSLYN_MCP_REPO" /src && \
     dotnet pack /src/src/RoslynMcp.Server/RoslynMcp.Server.csproj -c Release -o /packages && \
     dotnet tool install -g RoslynMcp.Server --add-source /packages && \
