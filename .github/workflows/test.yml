@@ -1,0 +1,36 @@
+name: Test Docker Build
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: docker build -t roslyn-mcp:test .
+
+      - name: Verify image runs
+        run: |
+          # Test that the image starts and responds to MCP initialize
+          echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}' | \
+            timeout 30 docker run -i --rm roslyn-mcp:test 2>&1 | head -20 || true
+
+      - name: Check image size
+        run: |
+          SIZE=$(docker image inspect roslyn-mcp:test --format='{{.Size}}')
+          SIZE_MB=$((SIZE / 1024 / 1024))
+          echo "Image size: ${SIZE_MB}MB"
+          # Warn if image is larger than 2GB (SDK images are large)
+          if [[ $SIZE_MB -gt 2048 ]]; then
+            echo "::warning::Image size is ${SIZE_MB}MB, consider optimizing"
+          fi

@@ -1,0 +1,122 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  schedule:
+    # Check for upstream updates daily at 6 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      roslyn_mcp_version:
+        description: 'RoslynMcp.Server version (default: latest)'
+        required: false
+        default: 'latest'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  check-upstream:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+      upstream_version: ${{ steps.check.outputs.upstream_version }}
+    steps:
+      - name: Check upstream NuGet package version
+        id: check
+        run: |
+          # Query NuGet API for latest version
+          UPSTREAM_VERSION=$(curl -s "https://api.nuget.org/v3-flatcontainer/roslynmcp.server/index.json" | \
+            jq -r '.versions | last' 2>/dev/null || echo "unknown")
+          echo "upstream_version=${UPSTREAM_VERSION}" >> $GITHUB_OUTPUT
+
+          # Always build on push/PR, only check version on schedule
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            # Check if we already have this version tagged
+            EXISTING_TAG=$(curl -s "https://api.github.com/repos/${{ github.repository }}/git/refs/tags" | \
+              jq -r '.[].ref' | grep "refs/tags/v${UPSTREAM_VERSION}" || true)
+            if [[ -z "$EXISTING_TAG" ]]; then
+              echo "should_build=true" >> $GITHUB_OUTPUT
+            else
+              echo "should_build=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: check-upstream
+    if: needs.check-upstream.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ needs.check-upstream.outputs.upstream_version }},enable={{is_default_branch}}
+
+      - name: Determine RoslynMcp version
+        id: version
+        run: |
+          if [[ "${{ github.event.inputs.roslyn_mcp_version }}" != "" ]]; then
+            echo "version=${{ github.event.inputs.roslyn_mcp_version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            ROSLYN_MCP_VERSION=${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create release tag for new upstream version
+        if: github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-upstream.outputs.upstream_version }}"
+          if [[ "$VERSION" != "unknown" ]]; then
+            git tag "v${VERSION}" || true
+            git push origin "v${VERSION}" || true
+          fi
