@@ -9,7 +9,7 @@
     Path to your code directory
 
 .PARAMETER NuGetPath
-    NuGet packages path (default: %USERPROFILE%\.nuget\packages)
+    NuGet packages path (default: auto-detect)
 
 .EXAMPLE
     .\verify-paths.ps1 -CodePath C:\git
@@ -23,8 +23,14 @@ param(
     [string]$CodePath,
 
     [Parameter(Mandatory = $false, Position = 1)]
-    [string]$NuGetPath = (Join-Path $env:USERPROFILE ".nuget\packages")
+    [string]$NuGetPath
 )
+
+# Auto-detect home directory (works on Windows and macOS/Linux)
+$homeDir = if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }
+if (-not $NuGetPath) {
+    $NuGetPath = Join-Path $homeDir ".nuget/packages"
+}
 
 $ErrorActionPreference = "Continue"
 $errors = 0

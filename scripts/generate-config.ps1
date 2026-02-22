@@ -45,9 +45,12 @@ if (-not (Test-Path $CodePath -PathType Container)) {
 }
 $CodePath = (Resolve-Path $CodePath).Path
 
+# Auto-detect home directory (works on Windows and macOS/Linux)
+$homeDir = if ($env:USERPROFILE) { $env:USERPROFILE } else { $env:HOME }
+
 # Auto-detect NuGet path if not specified
 if (-not $NuGetPath) {
-    $defaultNuGet = Join-Path $env:USERPROFILE ".nuget\packages"
+    $defaultNuGet = Join-Path $homeDir ".nuget/packages"
     if (Test-Path $defaultNuGet -PathType Container) {
         $NuGetPath = $defaultNuGet
     }
