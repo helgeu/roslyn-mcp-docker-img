@@ -63,9 +63,24 @@ Checks:
 - Docker is available
 - Image is pulled
 
+## Supported Clients
+
+This MCP server works with any client that supports the MCP protocol:
+
+| Client | Tested | Notes |
+|--------|--------|-------|
+| Claude Code | Yes | Full support |
+| Claude Desktop | Yes | Full support |
+| GitHub Copilot (VS Code) | Yes | See setup below |
+| Other MCP clients | - | Same JSON config format |
+
 ## Manual Configuration
 
-Add to your Claude settings (`~/.claude/settings.json` on macOS/Linux, `%APPDATA%\Claude\settings.json` on Windows):
+The JSON configuration is the same for all MCP clients. File locations differ by client — refer to your client's documentation for where to place the config.
+
+**Claude Code/Desktop:** `~/.claude/settings.json` (macOS/Linux) or `%APPDATA%\Claude\settings.json` (Windows)
+
+**GitHub Copilot (VS Code):** Add to your VS Code MCP settings. Refer to [GitHub Copilot MCP documentation](https://docs.github.com/en/copilot/using-github-copilot/using-extensions-to-integrate-external-tools-with-copilot-chat) for setup details.
 
 **macOS/Linux:**
 ```json
